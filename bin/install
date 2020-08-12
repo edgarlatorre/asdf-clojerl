@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+install_clojerl() {
+  local install_type=$1
+  local version=$2
+  local install_path=$3
+
+  if [ "$TMPDIR" = "" ]; then
+    local tmp_download_dir=$(mktemp -d -t clojerl_build_XXXXXX)
+  else
+    local tmp_download_dir=$TMPDIR
+  fi
+
+  install_clojerl_ref $version $install_path $tmp_download_dir
+}
+
+install_clojerl_ref() {
+  local ref=$1
+  local install_path=$2
+  local tmp_download_dir=$3
+
+  # path to the tar file
+  local source_path="$tmp_download_dir/clojerl-ref-${ref}-src.tar.gz"
+  download_source_archive_for_ref $ref $source_path
+
+  echo "==> Making the release"
+
+  # Expand source archive
+  tar zxf $source_path -C $install_path --strip-components=1 || exit 1
+
+  # Build from source in a subshell
+  # we don't want to disturb current working dir
+  (cd $install_path; make clean test)
+
+  if [ $? -ne 0 ]; then
+    rm -rf $install_path
+    exit 1
+  fi
+}
+
+download_source_archive_for_ref() {
+  local ref=$1
+  local download_path=$2
+  local download_url="https://github.com/clojerl/clojerl/archive/${ref}.tar.gz"
+
+  # determine if the file exists
+  # echo "==> Checking whether specified clojerl reference exists..."
+  # http_status=$(curl -I -w %{http_code} -s -o /dev/null $download_url)
+
+  echo "==> Downloading ${ref} to ${download_path}"
+  curl -Lo $download_path -C - $download_url
+}
+
+install_clojerl $ASDF_INSTALL_TYPE $ASDF_INSTALL_VERSION $ASDF_INSTALL_PATH
